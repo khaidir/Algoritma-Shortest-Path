@@ -22,7 +22,7 @@ Format file yang didukung (sesuai soal Tugas 1 MMAI1001)::
   yang dipisahkan spasi.
 
 Pembaca ini sengaja dibuat toleran terhadap masalah yang sering muncul
-ketika teks disalin dari PDF/Word, misalnya tanda kutip "pintar" (‘ ’ “ ”),
+ketika teks disalin dari PDF/Word, misalnya tanda kutip "pintar" (`` “ ”),
 spasi tak terputus (non-breaking space), dan BOM di awal file.
 
 Parsing dictionary dilakukan dengan ``ast.literal_eval`` sehingga aman:
@@ -41,11 +41,11 @@ Graf = Dict[str, Dict[str, float]]
 
 # Karakter yang sering ikut tersalin dari PDF/Word dan perlu dinormalisasi.
 _PENGGANTI_KARAKTER = {
-    "‘": "'",  # ‘  kutip tunggal pembuka
-    "’": "'",  # ’  kutip tunggal penutup
+    "'": "'",  # ‘  kutip tunggal pembuka
+    "'": "'",  # ’  kutip tunggal penutup
     "“": '"',  # “  kutip ganda pembuka
     "”": '"',  # ”  kutip ganda penutup
-    " ": " ",  # spasi tak terputus
+    " ": " ",  # spasi tak terputus
     "﻿": "",   # BOM (byte order mark)
 }
 
@@ -53,11 +53,9 @@ _PENGGANTI_KARAKTER = {
 class GrafError(ValueError):
     """Dilempar ketika isi file graf tidak sesuai format yang diharapkan."""
 
-
 @dataclass
 class DataGraf:
     """Hasil pembacaan file graf.
-
     Attributes:
         graf: adjacency list berbobot ``{simpul: {tetangga: bobot}}``.
         awal: simpul awal (dari baris terakhir file).
