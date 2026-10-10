@@ -27,6 +27,9 @@ dan **waktu running** untuk kedua algoritma, serta perbandingan keduanya.
 | `tata_letak.py` | Menghitung posisi simpul secara otomatis (stress majorization) untuk digambar. |
 | `visualisasi.py` | GUI tkinter: gambar graf, animasi pencarian, panel hasil, tabel perbandingan, log. |
 | `graf.txt` | Input contoh **A** (V1 → V15). |
+| `graf_C.txt` | Input contoh **C** (graf huruf A–J, B → H). |
+| `test_input_C.py` | Pengujian otomatis input C (dibandingkan dengan Floyd-Warshall dan brute force). |
+| `Docs/gambar_input_C/` | Tangkapan layar GUI untuk input C. |
 
 ## 2. Kebutuhan
 
@@ -194,7 +197,140 @@ Simpul diperluas: 7, relaksasi sisi: 9
   lebih besar (ribuan simpul) atau jika heuristik lebih informatif (misalnya ada koordinat
   peta), keuntungan A\* akan semakin terasa.
 
-## 7. Lanjutan untuk tim: input B dan C
+## 7. Hasil untuk input C (`graf_C.txt`: B → H)
+
+Input C memakai graf huruf A–J dari soal (10 simpul, 15 sisi tak berarah), disimpan sebagai
+`graf_C.txt`. Program tidak diubah sama sekali; cukup jalankan dengan nama file tersebut.
+
+```text
+graf = {
+'A': {'B': 4, 'C': 2},
+'B': {'A': 4, 'C': 1, 'D': 5},
+'C': {'A': 2, 'B': 1, 'E': 10, 'F': 3},
+'D': {'B': 5, 'E': 2, 'G': 4},
+'E': {'C': 10, 'D': 2, 'F': 2, 'H': 3},
+'F': {'C': 3, 'E': 2, 'I': 11},
+'G': {'D': 4, 'H': 1},
+'H': {'E': 3, 'G': 1, 'I': 5, 'J': 7},
+'I': {'F': 11, 'H': 5, 'J': 2},
+'J': {'H': 7, 'I': 2}
+}
+B H
+```
+
+Keluaran `python MMAIKelompok1.py --cli graf_C.txt`:
+
+```text
+=== Dijkstra ===
+Jalur terpendek: B→C→F→E→H
+Bobot minimum: 9
+Waktu runtime: 9.21 µs (rata-rata dari 1787× eksekusi)
+Simpul diperluas: 8, relaksasi sisi: 12
+
+=== A* ===
+Jalur terpendek: B→C→F→E→H
+Bobot minimum: 9
+Waktu runtime: 24.89 µs (rata-rata dari 1767× eksekusi)
+Simpul diperluas: 7, relaksasi sisi: 11
+```
+
+| Metrik | Dijkstra | A\* |
+|--------|----------|-----|
+| Jalur terpendek | B→C→F→E→H | B→C→F→E→H |
+| Bobot minimum | 9 | 9 |
+| Simpul diperluas | 8 dari 10 | 7 dari 10 |
+| Relaksasi sisi | 12 | 11 |
+| Waktu, mode teks `--cli` (µs) | 9,21 | 24,89 |
+| Waktu, GUI per algoritma (µs) | 9,79 | 25,00 |
+| Waktu, GUI tombol Bandingkan (µs) | 9,55 | 22,99 |
+
+Ketiga pengukuran waktu di atas diambil pada MacBook Pro (macOS, Python dari Anaconda) dan
+terlihat di tangkapan layar `C2`, `C4`, `C5`, dan `C6`. Sebagai pembanding, median 30
+pengukuran di Linux x86_64 (Python 3.12) adalah 8,8 µs untuk Dijkstra dan 22,2 µs untuk A\*.
+Angka mutlak berbeda di setiap komputer dan setiap kali dijalankan; yang konsisten adalah
+Dijkstra sekitar 2,4–2,7× lebih cepat.
+
+### Jejak Dijkstra
+
+| Urutan | Simpul diambil | d (final) | Relaksasi yang memperbarui jarak |
+|--------|----------------|-----------|----------------------------------|
+| 1 | B | 0 | A = 4, C = 1, D = 5 |
+| 2 | C | 1 | A: 4 → 3, E = 11, F = 4 |
+| 3 | A | 3 | (tetangga sudah final) |
+| 4 | F | 4 | E: 11 → 6, I = 15 |
+| 5 | D | 5 | G = 9 (D→E = 7 tidak memperbarui 6) |
+| 6 | E | 6 | H = 9 |
+| 7 | G | 9 | (G→H = 10 tidak memperbarui 9) |
+| 8 | H | 9 | tujuan diambil, berhenti |
+
+### Jejak A\*
+
+Heuristik `h(n) = w_min × hop(n, H)` dengan `w_min = 1`:
+h(A) = 3, h(B) = 3, h(C) = 2, h(D) = 2, h(F) = 2, h(E) = 1, h(G) = 1, h(I) = 1, h(J) = 1, h(H) = 0.
+
+| Urutan | Simpul diambil | g | h | f = g + h | Relaksasi yang memperbarui |
+|--------|----------------|---|---|-----------|----------------------------|
+| 1 | B | 0 | 3 | 3 | A = 4, C = 1, D = 5 |
+| 2 | C | 1 | 2 | 3 | A: 4 → 3, E = 11, F = 4 |
+| 3 | F | 4 | 2 | 6 | E: 11 → 6, I = 15 |
+| 4 | A | 3 | 3 | 6 | (tetangga sudah final) |
+| 5 | E | 6 | 1 | 7 | H = 9 |
+| 6 | D | 5 | 2 | 7 | G = 9 |
+| 7 | H | 9 | 0 | 9 | tujuan diambil, berhenti |
+
+### Analisis
+
+* **Hasil sesuai soal.** Kedua algoritma menemukan B→C→F→E→H dengan bobot 9. Hasil ini dicek
+  ulang oleh `test_input_C.py` terhadap Floyd-Warshall (semua pasangan simpul) dan penelusuran
+  semua 22 jalur sederhana dari B ke H: jalur berbobot 9 hanya satu, dan dua jalur terbaik
+  berikutnya (B→D→E→H dan B→D→G→H) berbobot 10.
+* **Contoh relaksasi yang jelas.** Sisi langsung C→E berbobot 10, tetapi jalan memutar C→F→E
+  hanya 3 + 2 = 5. Kedua algoritma mula-mula mencatat E = 11 (lewat C), lalu memperbaruinya
+  menjadi 6 saat F diperluas. Inilah alasan jalur terpendek melewati F, meskipun jumlah sisinya
+  lebih banyak daripada B→D→E→H.
+* **A\* hanya menghemat satu simpul (G), dan penghematan itu berasal dari aturan seri.**
+  Dijkstra wajib memperluas semua simpul dengan d < 9, yaitu B, C, A, F, D, E. A\* wajib
+  memperluas semua simpul dengan f < 9, dan ternyata himpunannya sama persis: B (3), C (3),
+  F (6), A (6), E (7), D (7). Perbedaannya hanya pada G dan H yang sama-sama berjarak 9:
+  Dijkstra memecah seri berdasarkan urutan masuk antrian sehingga G diambil sebelum H, sedangkan
+  A\* memecah seri dengan h lebih kecil sehingga H diambil lebih dulu. Pada input A, A\*
+  benar-benar memangkas pencarian (12 → 7 simpul).
+* **Penyebabnya: heuristik kurang informatif pada input C.** Bobot sisi terkecil hanya 1,
+  sehingga h(n) sama dengan jumlah hop. Perkiraan dari B hanya h(B) = 3, sepertiga dari biaya
+  sebenarnya 9; rata-rata rasio h/h\* semua simpul 0,37. Pada input A, w_min = 70 sehingga
+  h(V1) = 280 dari 505 (rasio 0,55; rata-rata 0,53). Makin dekat h ke biaya sebenarnya,
+  makin banyak simpul yang bisa dilewati A\*.
+* **Waktu.** Dijkstra sekitar 2,4–2,7× lebih cepat pada semua pengukuran. A\* menghitung heuristik dengan BFS untuk semua
+  simpul dan menyimpan tuple heap yang lebih besar, sementara simpul yang dihemat hanya satu.
+  Pada graf sekecil ini, biaya tambahan A\* tidak tertutup oleh penghematannya.
+
+### Tangkapan layar GUI
+
+| File | Isi | Sumber |
+|------|-----|--------|
+| `Docs/gambar_input_C/C0_tampilan_awal.png` | Graf C dimuat, B (hijau) dan H (merah) | Uji Linux |
+| `Docs/gambar_input_C/C1_dijkstra_langkah9.png` | Dijkstra di tengah animasi (langkah 9) | Uji Linux |
+| `Docs/gambar_input_C/C2_dijkstra_hasil.png` | Hasil akhir Dijkstra (9,79 µs) | MacBook Pro |
+| `Docs/gambar_input_C/C3_astar_langkah9.png` | A\* di tengah animasi, label g dan h terlihat | Uji Linux |
+| `Docs/gambar_input_C/C4_astar_hasil.png` | Hasil akhir A\* (25,00 µs) | MacBook Pro |
+| `Docs/gambar_input_C/C5_perbandingan.png` | Tombol **Bandingkan Dijkstra vs A\*** | MacBook Pro |
+| `Docs/gambar_input_C/C6_terminal_cli_dan_tes.png` | Mode teks `--cli` dan `test_input_C.py` (6 tes OK) | MacBook Pro |
+
+Hasil yang sama di Linux dan macOS menunjukkan program berjalan di lebih dari satu komputer,
+sesuai syarat soal.
+
+### Pengujian otomatis
+
+```bash
+python test_input_C.py
+```
+
+Enam pengujian: file terbaca (10 simpul, 15 sisi, B → H), Dijkstra dan A\* sesuai contoh soal,
+kedua algoritma cocok dengan Floyd-Warshall untuk semua 100 pasangan simpul, jalur optimal
+tunggal, serta heuristik admissible dan konsisten pada graf C. Algoritma pembanding hanya
+ada di file pengujian, bukan bagian program utama.
+
+## 8. Lanjutan untuk tim: input B dan C
 
 Program sudah generik — untuk menguji input lain cukup buat file graf baru, tanpa mengubah kode.
 
@@ -209,9 +345,9 @@ Program sudah generik — untuk menguji input lain cukup buat file graf baru, ta
 |-------|------------------------|--------------|----------------|-----------|-------------------|
 | A: V1 → V15 | V1→V2→V5→V9→V12→V15 | 505 | lihat bagian 6 | lihat bagian 6 | 12 / 7 |
 | B: V1 → V10 | V1→V4→V6→V10 | 400 | … | … | … |
-| C: B → H | B→C→F→E→H | 9 | … | … | … |
+| C: B → H | B→C→F→E→H | 9 | 9,2–9,8 µs | 23,0–24,9 µs | 8 / 7 (lihat bagian 7) |
 
-## 8. Ide untuk video presentasi (±10 menit)
+## 9. Ide untuk video presentasi (±10 menit)
 
 1. Pengantar masalah & format `graf.txt` (anggota 1).
 2. Penjelasan Dijkstra + demo animasi langkah demi langkah dengan tombol **→** (anggota 2).
