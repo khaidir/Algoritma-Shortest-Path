@@ -27,8 +27,11 @@ dan **waktu running** untuk kedua algoritma, serta perbandingan keduanya.
 | `tata_letak.py` | Menghitung posisi simpul secara otomatis (stress majorization) untuk digambar. |
 | `visualisasi.py` | GUI tkinter: gambar graf, animasi pencarian, panel hasil, tabel perbandingan, log. |
 | `graf.txt` | Input contoh **A** (V1 → V15). |
+| `graf_B.txt` | Input contoh **B** (graf yang sama dengan A, V1 → V10). |
 | `graf_C.txt` | Input contoh **C** (graf huruf A–J, B → H). |
+| `test_input_B.py` | Pengujian otomatis input B (dibandingkan dengan Floyd-Warshall dan brute force). |
 | `test_input_C.py` | Pengujian otomatis input C (dibandingkan dengan Floyd-Warshall dan brute force). |
+| `Docs/gambar_input_B/` | Tangkapan layar GUI untuk input B. |
 | `Docs/gambar_input_C/` | Tangkapan layar GUI untuk input C. |
 
 ## 2. Kebutuhan
@@ -197,7 +200,132 @@ Simpul diperluas: 7, relaksasi sisi: 9
   lebih besar (ribuan simpul) atau jika heuristik lebih informatif (misalnya ada koordinat
   peta), keuntungan A\* akan semakin terasa.
 
-## 7. Hasil untuk input C (`graf_C.txt`: B → H)
+## 7. Hasil untuk input B (`graf_B.txt`: V1 → V10)
+
+Input B memakai graf yang **sama persis** dengan input A (15 simpul, 18 sisi); yang berbeda hanya
+baris terakhir, yaitu `V1 V10`. File `graf_B.txt` adalah salinan `graf.txt` dengan baris terakhir
+diganti. Program tidak diubah sama sekali.
+
+Keluaran `python MMAIKelompok1.py --cli graf_B.txt`:
+
+```text
+=== Dijkstra ===
+Jalur terpendek: V1→V4→V6→V10
+Bobot minimum: 400
+Waktu runtime: 5.48 µs (rata-rata dari 5000× eksekusi)
+Simpul diperluas: 9, relaksasi sisi: 12
+
+=== A* ===
+Jalur terpendek: V1→V4→V6→V10
+Bobot minimum: 400
+Waktu runtime: 12.45 µs (rata-rata dari 3067× eksekusi)
+Simpul diperluas: 5, relaksasi sisi: 8
+```
+
+| Metrik | Dijkstra | A\* |
+|--------|----------|-----|
+| Jalur terpendek | V1→V4→V6→V10 | V1→V4→V6→V10 |
+| Bobot minimum | 400 | 400 |
+| Simpul diperluas | 9 dari 15 | 5 dari 15 |
+| Relaksasi sisi | 12 | 8 |
+| Waktu, mode teks `--cli` (µs) | 5,48 | 12,45 |
+| Waktu, GUI per algoritma (µs) | 6,88 | 12,62 |
+| Waktu, GUI tombol Bandingkan (µs) | 7,05 | 12,06 |
+
+Pengukuran input B diambil di laptop Windows 11 (Intel, Python 3.12.9) dan terlihat di tangkapan
+layar `B2`, `B4`, dan `B5`. Median 30 pengukuran di laptop yang sama adalah 5,4 µs untuk Dijkstra
+dan 12,1 µs untuk A\*. Dijkstra sekitar 1,7–2,3× lebih cepat.
+
+### Jejak Dijkstra
+
+| Urutan | Simpul diambil | d (final) | Relaksasi yang memperbarui jarak |
+|--------|----------------|-----------|----------------------------------|
+| 1 | V1 | 0 | V2 = 120, V4 = 200 |
+| 2 | V2 | 120 | V3 = 270, V5 = 210 |
+| 3 | V4 | 200 | V6 = 330, V8 = 420 |
+| 4 | V5 | 210 | V9 = 305 |
+| 5 | V3 | 270 | V7 = 380 (V3→V6 = 350 tidak memperbarui 330) |
+| 6 | V9 | 305 | V12 = 415 |
+| 7 | V6 | 330 | V10 = 400 |
+| 8 | V7 | 380 | V11 = 520 |
+| 9 | V10 | 400 | tujuan diambil, berhenti |
+
+### Jejak A\*
+
+Heuristik `h(n) = w_min × hop(n, V10)` dengan `w_min = 70`:
+h(V1) = 210, h(V2) = 210, h(V3) = 140, h(V4) = 140, h(V5) = 280, h(V6) = 70, h(V7) = 210,
+h(V8) = 70, h(V9) = 350, h(V10) = 0, h(V11) = 140, h(V12) = 280, h(V13) = 70, h(V14) = 140,
+h(V15) = 210.
+
+| Urutan | Simpul diambil | g | h | f = g + h | Relaksasi yang memperbarui |
+|--------|----------------|---|---|-----------|----------------------------|
+| 1 | V1 | 0 | 210 | 210 | V2 = 120 (f = 330), V4 = 200 (f = 340) |
+| 2 | V2 | 120 | 210 | 330 | V3 = 270 (f = 410), V5 = 210 (f = 490) |
+| 3 | V4 | 200 | 140 | 340 | V6 = 330 (f = 400), V8 = 420 (f = 490) |
+| 4 | V6 | 330 | 70 | 400 | V10 = 400 (f = 400); V6→V3 = 410 tidak memperbarui 270 |
+| 5 | V10 | 400 | 0 | 400 | tujuan diambil, berhenti |
+
+### Analisis
+
+* **Hasil sesuai soal.** Kedua algoritma menemukan V1→V4→V6→V10 dengan bobot 400. Hasil ini dicek
+  ulang oleh `test_input_B.py` terhadap Floyd-Warshall (semua 225 pasangan simpul) dan penelusuran
+  semua 12 jalur sederhana dari V1 ke V10: jalur berbobot 400 hanya satu, dan jalur terbaik
+  berikutnya, V1→V2→V3→V6→V10, berbobot 420.
+* **Langkah pertama yang paling murah tidak selalu menuju jalur terpendek.** Dari V1, sisi ke V2
+  (120) lebih murah daripada ke V4 (200), sehingga kedua algoritma memperluas V2 lebih dulu. Tetapi
+  dari V2 tidak ada jalan pendek ke V10: lewat V3 totalnya 420. Dijkstra tidak terkecoh karena
+  jarak sebuah simpul baru dianggap final ketika simpul itu diambil dari antrian, bukan ketika
+  pertama kali dicapai. Ini juga terlihat pada V6: V3→V6 memberi 350, tetapi V6 sudah tercatat 330
+  lewat V4, jadi jaraknya tidak berubah (langkah 14 di tangkapan layar `B1`).
+* **A\* memangkas hampir separuh pencarian: 9 → 5 simpul, 12 → 8 relaksasi.** Dijkstra wajib
+  memperluas semua simpul dengan d < 400: V1, V2, V4, V5, V3, V9, V6, V7. A\* hanya wajib
+  memperluas simpul dengan f < 400, yaitu V1 (210), V2 (330), dan V4 (340). V6 ikut diambil
+  karena f-nya tepat 400, lalu V10. Simpul V3, V5, V7, dan V9 tidak pernah diperluas. V3 nyaris
+  ikut (f = 410, hanya 10 di atas 400). V5 sempat masuk antrian, tetapi f-nya 210 + 280 = 490
+  sehingga tidak pernah diambil; akibatnya V9 bahkan tidak pernah dicapai.
+* **Graf sama, tujuan berbeda, arah pencarian ikut berubah.** Cabang V5→V9 yang dipangkas A\* di
+  input B justru merupakan bagian jalur terpendek input A (V1→V2→V5→V9→V12→V15). Sebaliknya, di
+  input A, A\* melewati V3, V6, V7, V8, V10, sedangkan V6 kini ada di jalur terpendek. Heuristik
+  dihitung ulang dari tujuan setiap kali, sehingga A\* "condong" ke arah yang berbeda walaupun
+  grafnya sama.
+* **Kenapa penghematan di B jauh lebih besar daripada di C.** Perkiraan dari V1 adalah
+  h(V1) = 210, sekitar 0,53 dari biaya sebenarnya 400; rata-rata rasio h/h\* semua simpul 0,60.
+  Pada input C rasio rata-ratanya hanya 0,37 karena w_min = 1. Makin dekat h ke biaya
+  sebenarnya, makin banyak simpul yang bisa dilewati: B menghemat 4 dari 9 simpul, A menghemat
+  5 dari 12, C hanya 1 dari 8.
+* **Waktu.** Walaupun memperluas lebih sedikit simpul, A\* tetap sekitar 1,7–2,3× lebih lambat.
+  Sebelum mencari, A\* menjalankan BFS ke seluruh 15 simpul untuk menghitung h, dan setiap entri
+  heap-nya berisi empat nilai (f, h, seri, simpul) dibanding tiga pada Dijkstra. Pada graf 15
+  simpul, biaya tambahan itu lebih besar daripada penghematan 4 simpul.
+
+### Tangkapan layar GUI
+
+| File | Isi |
+|------|-----|
+| `Docs/gambar_input_B/B0_tampilan_awal.png` | Graf B dimuat, V1 (hijau) dan V10 (merah) |
+| `Docs/gambar_input_B/B1_dijkstra_langkah14.png` | Dijkstra langkah 14: relaksasi V3→V6 tidak memperbarui (merah putus-putus) |
+| `Docs/gambar_input_B/B2_dijkstra_hasil.png` | Hasil akhir Dijkstra (6,88 µs) |
+| `Docs/gambar_input_B/B3_astar_langkah10.png` | A\* langkah 10, label g dan h terlihat; V3, V5, V8 masih di antrian |
+| `Docs/gambar_input_B/B4_astar_hasil.png` | Hasil akhir A\* (12,62 µs) |
+| `Docs/gambar_input_B/B5_perbandingan.png` | Tombol **Bandingkan Dijkstra vs A\*** |
+| `Docs/gambar_input_B/B6_terminal_cli_dan_tes.png` | Mode teks `--cli` dan `test_input_B.py` (7 tes OK) |
+
+Semua tangkapan layar input B diambil di Windows 11. Bersama Linux dan macOS pada input C, program
+sudah berjalan di tiga sistem operasi.
+
+### Pengujian otomatis
+
+```bash
+python test_input_B.py
+```
+
+Tujuh pengujian: file terbaca (15 simpul, 18 sisi, V1 → V10, graf identik dengan `graf.txt`),
+Dijkstra dan A\* sesuai contoh soal, kedua algoritma cocok dengan Floyd-Warshall untuk semua 225
+pasangan simpul, jalur optimal tunggal, heuristik admissible dan konsisten untuk tujuan V10, serta
+urutan simpul yang diperluas kedua algoritma sesuai jejak di atas. Fungsi pembanding dipakai ulang
+dari `test_input_C.py`.
+
+## 8. Hasil untuk input C (`graf_C.txt`: B → H)
 
 Input C memakai graf huruf A–J dari soal (10 simpul, 15 sisi tak berarah), disimpan sebagai
 `graf_C.txt`. Program tidak diubah sama sekali; cukup jalankan dengan nama file tersebut.
@@ -330,7 +458,7 @@ kedua algoritma cocok dengan Floyd-Warshall untuk semua 100 pasangan simpul, jal
 tunggal, serta heuristik admissible dan konsisten pada graf C. Algoritma pembanding hanya
 ada di file pengujian, bukan bagian program utama.
 
-## 8. Lanjutan untuk tim: input B dan C
+## 9. Lanjutan untuk tim: input B dan C
 
 Program sudah generik — untuk menguji input lain cukup buat file graf baru, tanpa mengubah kode.
 
@@ -344,10 +472,10 @@ Program sudah generik — untuk menguji input lain cukup buat file graf baru, ta
 | Input | Jalur terpendek (soal) | Bobot (soal) | Waktu Dijkstra | Waktu A\* | Diperluas D / A\* |
 |-------|------------------------|--------------|----------------|-----------|-------------------|
 | A: V1 → V15 | V1→V2→V5→V9→V12→V15 | 505 | lihat bagian 6 | lihat bagian 6 | 12 / 7 |
-| B: V1 → V10 | V1→V4→V6→V10 | 400 | … | … | … |
-| C: B → H | B→C→F→E→H | 9 | 9,2–9,8 µs | 23,0–24,9 µs | 8 / 7 (lihat bagian 7) |
+| B: V1 → V10 | V1→V4→V6→V10 | 400 | 5,5–7,1 µs | 12,1–12,6 µs | 9 / 5 (lihat bagian 7) |
+| C: B → H | B→C→F→E→H | 9 | 9,2–9,8 µs | 23,0–24,9 µs | 8 / 7 (lihat bagian 8) |
 
-## 9. Ide untuk video presentasi (±10 menit)
+## 10. Ide untuk video presentasi (±10 menit)
 
 1. Pengantar masalah & format `graf.txt` (anggota 1).
 2. Penjelasan Dijkstra + demo animasi langkah demi langkah dengan tombol **→** (anggota 2).
